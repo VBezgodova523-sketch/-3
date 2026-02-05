@@ -1,0 +1,269 @@
+// Глобальный объект для хранения активной игры
+let currentGame = null;
+
+const CONFIG = {
+    mode: 'matching', // Пока что только 'matching'
+    timerEnabled: false,
+    timeLimit: 60,
+    items: [ // Каждая пара: задание и соответствующий ответ
+        { id: '1', taskContent: { type: 'text', value: 'Cat' }, targetContent: { type: 'image', value: 'https://cdn-icons-png.flaticaticon.com/512/104/104278.png' } },
+        { id: '2', taskContent: { type: 'image', value: 'https://cdn-icons-png.flaticon.com/512/104/104278.png' }, targetContent: { type: 'text', value: 'Dog' } }, // Пример с ошибкой для демонстрации
+        { id: '3', taskContent: { type: 'text', value: 'Кот' }, targetContent: { type: 'text', value: 'Cat' } }
+    ],
+    styles: {
+        fontSize: "24px",
+        color: "#ffffff",
+        neon: true,
+        fontFamily: "Arial"
+    },
+    feedback: {
+        success: "Ты справился! ⭐",
+        error: "Попробуй еще раз! ️🤔",
+        final: "Ура! Все пары собраны!",
+        icon: '⭐' // Иконка для частиц
+    },
+    language: 'ru' // Язык интерфейса
+};
+
+class MatchGame {
+    constructor(config) {
+        this.config = config;
+        this.container = document.getElementById('game-container');
+        this.score = 0;
+        this.matchedPairs = new Set(); // Для отслеживания уже собранных пар
+        this.activeDraggedElement = null; // Элемент, который сейчас перетаскивают
+
+        // Создаем массив всех пузырей (задания + цели), чтобы они плавали
+        this.allBubbles = []; 
+
+        this.init();
+    }
+
+    init() {
+        if (!this.container) {
+            console.error("Контейнер #game-container не найден!");
+            return;
+        }
+        this.container.innerHTML = ''; // Очищаем контейнер на всякий случай
+
+        // Создаем все пузыри (как задания, так и цели)
+        this.config.items.forEach(pair => {
+            // Создаем пузырь для задания
+            const taskBubble = this.createBubble(pair.taskContent, pair.id, 'task');
+            this.container.appendChild(taskBubble);
+            this.allBubbles.push(taskBubble);
+
+            // Создаем пузырь для цели
+            const targetBubble = this.createBubble(pair.targetContent, pair.id, 'target');
+            this.container.appendChild(targetBubble);
+            this.allBubbles.push(targetBubble);
+        });
+
+        this.allBubbles.forEach(bubble => this.animateBubble(bubble));
+
+        // Добавляем глобальные обработчики для drag-and-drop
+        this.container.addEventListener('mouseup', this.handleMouseUp.bind(this));
+        this.container.addEventListener('mousemove', this.handleMouseMove.bind(this));
+    }
+
+    // Создает пузырь с контентом (текст или картинка)
+    createBubble(content, id, type) {
+        const el = document.createElement('div');
+        el.className = 'floating-item';
+        el.dataset.id = id;
+        el.dataset.type = type; // 'task' или 'target'
+        el.style.fontSize = this.config.styles.fontSize;
+        el.style.color = this.config.styles.color;
+        el.style.fontFamily = this.config.styles.fontFamily;
+        if (this.config.styles.neon) el.classList.add('neon-effect');
+
+        const contentEl = document.createElement('div');
+        contentEl.className = 'content';
+
+        if (content.type === 'text') {
+            contentEl.innerText = content.value;
+        } else if (content.type === 'image') {
+            const img = document.createElement('img');
+            img.src = content.value;
+            img.alt = `Изображение для ${id}`;
+            contentEl.appendChild(img);
+        }
+        el.appendChild(contentEl);
+
+        // Случайная начальная позиция
+        el.style.left = Math.random() * (this.container.offsetWidth - 150) + 'px'; // -150 для предотвращения выхода за границы
+        el.style.top = Math.random() * (this.container.offsetHeight - 150) + 'px';
+
+        el.addEventListener('mousedown', (e) => this.handleMouseDown(e, el));
+        return el;
+    }
+
+    // Анимация "плавания" на месте
+    animateBubble(el) {
+        let angle = Math.random() * Math.PI * 2;
+        let speed = 0.05 + Math.random() * 0.05; // Немного случайной скорости
+        const initialX = parseFloat(el.style.left);
+        const initialY = parseFloat(el.style.top);
+
+        // Используем requestAnimationFrame для более плавной анимации
+        const animate = () => {
+            if (el.parentNode === null) return; // Останавливаем анимацию, если элемент удален
+
+            const xOffset = Math.sin(angle) * 5; // Небольшое смещение
+            const yOffset = Math.cos(angle) * 5;
+            el.style.left = (initialX + xOffset) + 'px';
+            el.style.top = (initialY + yOffset) + 'px';
+            angle += speed;
+            requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+    }
+
+    // Обработка начала перетаскивания
+    handleMouseDown(e, el) {
+        if (el.dataset.type !== 'task' || this.matchedPairs.has(el.dataset.id)) {
+            // Перетаскивать можно только "задания", и только если они еще не сопоставлены
+            return;
+        }
+        this.activeDraggedElement = el;
+        el.style.zIndex = 1000; // Поднимаем над остальными
+        el.style.cursor = 'grabbing';
+
+        // Сохраняем начальное смещение мыши относительно элемента
+        this.offsetX = e.clientX - el.getBoundingClientRect().left;
+        this.offsetY = e.clientY - el.getBoundingClientRect().top;
+    }
+
+    // Обработка движения перетаскиваемого элемента
+    handleMouseMove(e) {
+        if (!this.activeDraggedElement) return;
+
+        // Перемещаем элемент, учитывая смещение
+        this.activeDraggedElement.style.left = (e.clientX - this.offsetX) + 'px';
+        this.activeDraggedElement.style.top = (e.clientY - this.offsetY) + 'px';
+    }
+
+    // Обработка отпускания элемента
+    handleMouseUp(e) {
+        if (!this.activeDraggedElement) return;
+
+        this.activeDraggedElement.style.zIndex = 1; // Возвращаем z-index
+        this.activeDraggedElement.style.cursor = 'grab';
+
+        const draggedId = this.activeDraggedElement.dataset.id;
+        let matched = false;
+
+        // Проверяем на пересечение с целевыми элементами
+        this.allBubbles.filter(b => b.dataset.type === 'target' && !this.matchedPairs.has(b.dataset.id))
+                       .forEach(targetEl => {
+            if (this.isOverlapping(this.activeDraggedElement, targetEl)) {
+                if (draggedId === targetEl.dataset.id) {
+                    this.matchFound(this.activeDraggedElement, targetEl);
+                    matched = true;
+                } else {
+                    this.showFeedback(e.clientX, e.clientY, false);
+                }
+            }
+        });
+
+        if (!matched) {
+            // Если не было совпадения, возвращаем элемент на его исходную позицию (можно добавить анимацию)
+            // Для простоты пока просто оставляем его на месте после отпускания
+            // TODO: реализовать возврат на исходную позицию или плавное "отталкивание"
+            this.activeDraggedElement.style.left = this.activeDraggedElement.getAttribute('data-initial-left') || this.activeDraggedElement.style.left;
+            this.activeDraggedElement.style.top = this.activeDraggedElement.getAttribute('data-initial-top') || this.activeDraggedElement.style.top;
+        }
+        
+        this.activeDraggedElement = null;
+    }
+
+    // Проверка на пересечение двух элементов
+    isOverlapping(el1, el2) {
+        const rect1 = el1.getBoundingClientRect();
+        const rect2 = el2.getBoundingClientRect();
+        return !(rect1.right < rect2.left || 
+                 rect1.left > rect2.right || 
+                 rect1.bottom < rect2.top || 
+                 rect1.top > rect2.bottom);
+    }
+
+    // Обработка найденной пары
+    matchFound(taskEl, targetEl) {
+        const id = taskEl.dataset.id;
+        if (this.matchedPairs.has(id)) return; // Уже сопоставлено
+
+        this.matchedPairs.add(id);
+        this.score++;
+
+        // Анимируем "лопание" обоих пузырей
+        this.popBubble(taskEl);
+        this.popBubble(targetEl);
+
+        // Показываем успешный фидбек в точке сопоставления (середина между пузырями)
+        const taskRect = taskEl.getBoundingClientRect();
+        const targetRect = targetEl.getBoundingClientRect();
+        const centerX = (taskRect.left + taskRect.right + targetRect.left + targetRect.right) / 4;
+        const centerY = (taskRect.top + taskRect.bottom + targetRect.top + targetRect.bottom) / 4;
+        this.showFeedback(centerX, centerY, true);
+
+        if (this.score === this.config.items.length) {
+            this.finishGame();
+        }
+    }
+
+    // Анимация "лопания" пузыря
+    popBubble(el) {
+        el.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+        el.style.transform = 'scale(0)';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300); // Удаляем после анимации
+    }
+
+    // Фидбек: Всплывающие частицы
+    showFeedback(x, y, isSuccess) {
+        const msg = isSuccess ? this.config.feedback.success : this.config.feedback.error;
+        const icon = isSuccess ? this.config.feedback.icon : '😢'; // Грустный смайлик для ошибки
+
+        // Создаем текстовое сообщение
+        const feedbackText = document.createElement('div');
+        feedbackText.className = 'feedback-message';
+        feedbackText.innerText = msg;
+        feedbackText.style.left = x + 'px';
+        feedbackText.style.top = (y - 50) + 'px'; // Выше места клика
+        this.container.appendChild(feedbackText);
+
+        setTimeout(() => feedbackText.remove(), 1500); // Сообщение исчезает
+
+        // Создаем частицы
+        for (let i = 0; i < 10; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.innerText = icon; // Используем иконку из конфига или грустный смайлик
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            p.style.setProperty('--x', (Math.random() - 0.5) * 200 + 'px');
+            p.style.setProperty('--y', (Math.random() - 0.5) * 200 + 'px');
+            
+            this.container.appendChild(p);
+            setTimeout(() => p.remove(), 800);
+        }
+    }
+
+    finishGame() {
+        // Показываем финальный фидбек
+        const finalMsg = document.createElement('div');
+        finalMsg.className = 'final-feedback';
+        finalMsg.innerText = this.config.feedback.final;
+        this.container.appendChild(finalMsg);
+        
+        // Тут можно добавить анимацию сундука, портала и т.д.
+        console.log("Игра завершена!");
+    }
+}
+
+// Инициализация игры при загрузке Genially
+document.addEventListener('DOMContentLoaded', () => {
+    // Убедимся, что game-container существует
+    const gameContainer = document.createElement('div');
+    gameContainer.id = 'game-container';
+    gameContainer.
