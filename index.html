@@ -1,120 +1,26 @@
-<div id="game-container" style="width: 100%; height: 400px; position: relative; border: 1px solid #ccc; overflow: hidden; font-family: sans-serif;">
-    <div id="task-text" style="text-align: center; font-size: 24px; margin-top: 20px;">Загрузка задания...</div>
-    <div id="drop-zone-container" style="display: flex; justify-content: space-around; margin-top: 50px;"></div>
-    <div id="drag-items-container" style="display: flex; justify-content: space-around; margin-top: 100px;"></div>
-    
-    <div id="feedback" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; border-radius: 10px; text-align: center; z-index: 100;"></div>
-</div>
-
-<script>
-// Эти параметры потом будет генерировать ваш Редактор
-const gameSettings = {
-    taskTitle: "Сопоставь столицы и страны",
-    type: "match", // match, gap, error
-    items: [
-        { id: 1, text: "Франция", match: "Париж" },
-        { id: 2, text: "Италия", match: "Рим" },
-        { id: 3, text: "Япония", match: "Токио" }
-    ],
-    style: {
-        fontSize: "20px",
-        color: "#333",
-        neon: true,
-        timer: false
-    },
-    feedback: {
-        success: "Ты справился! ⭐",
-        error: "Попробуй еще раз... 😢"
-    }
-};
-
-let solvedCount = 0;
-
-function initGame() {
-    const taskEl = document.getElementById('task-text');
-    const dropZoneCont = document.getElementById('drop-zone-container');
-    const dragItemsCont = document.getElementById('drag-items-container');
-    
-    taskEl.innerText = gameSettings.taskTitle;
-    taskEl.style.color = gameSettings.style.color;
-
-    // Создаем зоны (куда кидать)
-    gameSettings.items.forEach(item => {
-        const zone = document.createElement('div');
-        zone.className = 'drop-zone';
-        zone.innerText = item.match;
-        zone.dataset.matchId = item.id;
-        styleElement(zone, "target");
-        
-        zone.ondragover = (e) => e.preventDefault();
-        zone.ondrop = handleDrop;
-        
-        dropZoneCont.appendChild(zone);
-    });
-
-    // Создаем предметы (что таскать) - перемешиваем их
-    const shuffledItems = [...gameSettings.items].sort(() => Math.random() - 0.5);
-    shuffledItems.forEach(item => {
-        const dragItem = document.createElement('div');
-        dragItem.className = 'drag-item';
-        dragItem.innerText = item.text;
-        dragItem.draggable = true;
-        dragItem.dataset.id = item.id;
-        styleElement(dragItem, "source");
-        
-        dragItem.ondragstart = (e) => {
-            e.dataTransfer.setData("text", e.target.dataset.id);
-        };
-        
-        dragItemsCont.appendChild(dragItem);
-    });
+<style>
+.active-target {
+    transform: scale(1.1);
+    transition: all 0.2s ease;
 }
 
-function styleElement(el, type) {
-    el.style.padding = "15px";
-    el.style.border = "2px dashed #aaa";
-    el.style.borderRadius = "8px";
-    el.style.minWidth = "100px";
-    el.style.textAlign = "center";
-    el.style.backgroundColor = type === "source" ? "#fff" : "#f0f0f0";
-    if (gameSettings.style.neon) {
-        el.style.boxShadow = "0 0 10px rgba(0,255,255,0.5)";
-    }
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
 }
 
-function handleDrop(e) {
-    e.preventDefault();
-    const draggedId = e.dataTransfer.getData("text");
-    const targetId = e.target.dataset.matchId;
-    const feedbackEl = document.getElementById('feedback');
-
-    if (draggedId === targetId) {
-        // УСПЕХ
-        e.target.style.backgroundColor = "#90ee90";
-        e.target.style.border = "2px solid green";
-        showFeedback(gameSettings.feedback.success, "#d4edda");
-        solvedCount++;
-        
-        // Удаляем перетаскиваемый элемент (визуально "присоединяем")
-        const draggedEl = document.querySelector(`[data-id="${draggedId}"]`);
-        draggedEl.style.visibility = "hidden";
-
-        if (solvedCount === gameSettings.items.length) {
-            setTimeout(() => alert("Финальная награда: 🏆"), 500);
-        }
-    } else {
-        // ОШИБКА
-        showFeedback(gameSettings.feedback.error, "#f8d7da");
-    }
+.shake-animation {
+    animation: shake 0.2s ease-in-out 0s 2;
 }
 
-function showFeedback(text, bgColor) {
-    const feedbackEl = document.getElementById('feedback');
-    feedbackEl.innerText = text;
-    feedbackEl.style.backgroundColor = bgColor;
-    feedbackEl.style.display = "block";
-    setTimeout(() => { feedbackEl.style.display = "none"; }, 1500);
+/* Эффект появления из пузыря */
+.bubble-in {
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-initGame();
-</script>
+@keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+</style>
