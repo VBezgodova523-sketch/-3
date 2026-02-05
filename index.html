@@ -6,138 +6,239 @@
         :root {
             --accent: #00f2ff;
             --bg: #1a1a2e;
-            --glass: rgba(255, 255, 255, 0.1);
+            --text: #ffffff;
         }
 
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
-            background: var(--bg); color: white;
-            font-family: 'Segoe UI', sans-serif; overflow: hidden;
+            background: #1a1a2e; color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            overflow: hidden;
+            user-select: none;
         }
 
-        /* Красивый анимированный фон */
-        .background {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        #game-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100vh;
             background: radial-gradient(circle at center, #16213e 0%, #0f3460 100%);
-            z-index: -1;
-        }
-
-        .game-canvas {
             display: flex;
             justify-content: space-around;
             align-items: center;
-            height: 100vh;
-            padding: 0 50px;
         }
 
         .column {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
             z-index: 2;
         }
 
-        /* Карточка которую тащим */
+        /* КАРТОЧКА ОБЪЕКТА */
         .draggable {
-            width: 100px; height: 100px;
-            background: var(--glass);
-            border: 2px solid rgba(255,255,255,0.2);
-            border-radius: 20px;
-            display: flex; justify-content: center; align-items: center;
-            cursor: grab;
+            width: 90px;
+            height: 90px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 45px;
+            cursor: move;
+            position: relative;
             transition: transform 0.2s, box-shadow 0.2s;
-            touch-action: none;
-            box-sizing: border-box;
-            font-size: 40px; /* Для эмодзи */
+            z-index: 10;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            backdrop-filter: blur(5px);
         }
 
-        .draggable img {
-            width: 70%; height: 70%; object-fit: contain;
-            pointer-events: none;
-        }
-
-        .draggable:hover {
-            transform: scale(1.05);
-            border-color: var(--accent);
-            box-shadow: 0 0 20px var(--accent);
-        }
-
-        /* Зона цели */
+        /* ЦЕЛЬ (ОТВЕТ) */
         .dropzone {
-            width: 180px; height: 80px;
-            background: rgba(0,0,0,0.3);
-            border: 2px dashed rgba(255,255,255,0.3);
-            border-radius: 15px;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 18px; font-weight: bold;
+            width: 160px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.9);
             transition: all 0.3s;
-            text-align: center;
-            padding: 10px;
         }
 
-        .dropzone.highlight {
+        .dropzone.active-target {
             border-color: var(--accent);
-            background: rgba(0, 242, 255, 0.15);
+            background: rgba(0, 242, 255, 0.1);
             transform: scale(1.05);
+            box-shadow: 0 0 15px var(--accent);
         }
 
-        /* Скрытие при успехе */
-        .hidden { opacity: 0; pointer-events: none; transform: scale(0.5); transition: 0.4s; }
+        .matched {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0);
+            transition: 0.5s;
+        }
 
-        /* Сообщение в конце */
-        #win-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: none; flex-direction: column;
-            justify-content: center; align-items: center;
-            z-index: 100;
+        .zone-completed {
+            background: #00ff88 !important;
+            border-style: solid !important;
+            border-color: #00ff88 !important;
+            color: #000 !important;
+        }
+
+        #win-msg {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
         }
     </style>
 </head>
 <body>
 
-<div class="background"></div>
-
-<div id="game-container" class="game-canvas">
+<div id="game-wrapper">
     <div id="left-col" class="column"></div>
     <div id="right-col" class="column"></div>
 </div>
 
-<div id="win-screen">
-    <h1 style="font-size: 3rem; color: var(--accent);">ВЕЛИКОЛЕПНО! 🏆</h1>
-    <button onclick="location.reload()" style="padding: 15px 30px; cursor: pointer; border-radius: 30px; border: none; background: var(--accent); font-weight: bold;">Играть снова</button>
+<div id="win-msg">
+    <h1 style="color: var(--accent); font-size: 40px;">ОТЛИЧНО! 🎉</h1>
+    <button onclick="location.reload()" style="padding: 12px 25px; border-radius: 20px; border: none; background: var(--accent); cursor: pointer; font-weight: bold;">ЕЩЕ РАЗ</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 <script>
-const config = {
-    accentColor: "#00f2ff",
-    items: [
-        { id: 1, content: "🍎", label: "ЯБЛОКО", type: "emoji" },
-        { id: 2, content: "https://cdn-icons-png.flaticon.com/512/3069/3069172.png", label: "РАКЕТА", type: "img" },
-        { id: 3, content: "🐱", label: "КОШКА", type: "emoji" },
-        { id: 4, content: "https://cdn-icons-png.flaticon.com/512/2991/2991231.png", label: "КНИГА", type: "img" },
-        { id: 5, content: "🚗", label: "МАШИНА", type: "emoji" }
-    ]
-};
+const config = [
+    { id: 1, content: "🦁", label: "ЛЕВ" },
+    { id: 2, content: "🍓", label: "КЛУБНИКА" },
+    { id: 3, content: "🛸", label: "НЛО" },
+    { id: 4, content: "🎸", label: "ГИТАРА" },
+    { id: 5, content: "🏀", label: "МЯЧ" }
+];
 
-let matches = 0;
+let solved = 0;
 
-function init() {
-    const leftCol = document.getElementById('left-col');
-    const rightCol = document.getElementById('right-col');
+function createGame() {
+    const left = document.getElementById('left-col');
+    const right = document.getElementById('right-col');
 
-    // Перемешиваем
-    const draggables = [...config.items].sort(() => Math.random() - 0.5);
-    const dropzones = [...config.items].sort(() => Math.random() - 0.5);
+    const draggables = [...config].sort(() => Math.random() - 0.5);
+    const dropzones = [...config].sort(() => Math.random() - 0.5);
 
     draggables.forEach(item => {
-        const el = document.createElement('div');
-        el.className = 'draggable';
-        el.setAttribute('data-id', item.id);
+        const d = document.createElement('div');
+        d.className = 'draggable';
+        d.innerHTML = item.content;
+        d.dataset.id = item.id;
+        makeDraggable(d);
+        left.appendChild(d);
+    });
+
+    dropzones.forEach(item => {
+        const z = document.createElement('div');
+        z.className = 'dropzone';
+        z.innerHTML = `<span>${item.label}</span>`;
+        z.dataset.id = item.id;
+        right.appendChild(z);
+    });
+}
+
+function makeDraggable(el) {
+    let startX, startY, initialX, initialY;
+
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchstart', start, {passive: false});
+
+    function start(e) {
+        e.preventDefault();
+        const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
         
-        if(item.type === 'img') {
-            el.innerHTML = `<img src="${item.content}">`;
-        } else {
-            el.innerText = item.content;
+        const rect = el.getBoundingClientRect();
+        initialX = rect.left;
+        initialY = rect.top;
+        startX = clientX - rect.left;
+        startY = clientY - rect.top;
+
+        el.style.position = 'fixed';
+        el.style.width = rect.width + 'px';
+        el.style.height = rect.height + 'px';
+        moveAt(clientX, clientY);
+
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', stop);
+        document.addEventListener('touchmove', move, {passive: false});
+        document.addEventListener('touchend', stop);
+    }
+
+    function move(e) {
+        const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+        moveAt(clientX, clientY);
+        checkHover(clientX, clientY);
+    }
+
+    function moveAt(x, y) {
+        el.style.left = (x - startX) + 'px';
+        el.style.top = (y - startY) + 'px';
+    }
+
+    function checkHover(x, y) {
+        document.querySelectorAll('.dropzone').forEach(z => {
+            const r = z.getBoundingClientRect();
+            if (x > r.left && x < r.right && y > r.top && y < r.bottom) {
+                z.classList.add('active-target');
+            } else {
+                z.classList.remove('active-target');
+            }
+        });
+    }
+
+    function stop(e) {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', stop);
+        document.removeEventListener('touchmove', move);
+        document.removeEventListener('touchend', stop);
+
+        const rect = el.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        let hit = false;
+        document.querySelectorAll('.dropzone').forEach(z => {
+            const r = z.getBoundingClientRect();
+            if (centerX > r.left && centerX < r.right && centerY > r.top && centerY < r.bottom) {
+                if (z.dataset.id === el.dataset.id) {
+                    z.classList.add('zone-completed');
+                    el.classList.add('matched');
+                    solved++;
+                    hit = true;
+                    if(solved === config.length) {
+                        document.getElementById('win-msg').style.display = 'flex';
+                    }
+                }
+            }
+            z.classList.remove('active-target');
+        });
+
+        if (!hit) {
+            el.style.position = 'relative';
+            el.style.left = '0';
+            el.style.top = '0';
         }
+    }
+}
+
+createGame();
+</script>
+</body>
+</html>
