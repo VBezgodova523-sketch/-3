@@ -2,227 +2,139 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Собери пару - Genially Extension</title>
     <style>
-        :root { --accent-color: #00f2ff; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; background: transparent; }
-        
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
+        :root {
+            --accent-color: #00f2ff;
+            --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
         }
 
-        /* Стили для перетаскиваемых объектов */
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            background: var(--bg-gradient);
+        }
+
+        /* Анимированный фон с пузырями */
+        .bg-blobs {
+            position: absolute; width: 100%; height: 100%;
+            z-index: 0; overflow: hidden;
+        }
+        .blob {
+            position: absolute; background: var(--accent-color);
+            filter: blur(80px); border-radius: 50%; opacity: 0.15;
+            animation: move 20s infinite alternate;
+        }
+
+        @keyframes move {
+            from { transform: translate(-10%, -10%); }
+            to { transform: translate(20%, 20%); }
+        }
+
+        #game-screen {
+            position: relative; z-index: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            padding: 40px;
+            height: 90vh;
+            align-items: center;
+            justify-items: center;
+        }
+
+        /* Карточки объектов */
         .draggable {
-            width: 100px;
-            height: 100px;
-            background: white;
-            border: 3px solid #ccc;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            width: 120px; height: 120px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--glass-border);
+            border-radius: 24px;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
             cursor: grab;
-            position: absolute;
-            user-select: none;
-            transition: transform 0.2s, box-shadow 0.2s;
-            z-index: 10;
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.3s;
+            font-size: 3rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            touch-action: none; /* Важно для мобильных */
         }
 
-        .draggable:hover { transform: scale(1.1); box-shadow: 0 0 15px var(--accent-color); }
-        .draggable.neon { box-shadow: 0 0 10px var(--accent-color); border-color: var(--accent-color); }
+        .draggable:active { cursor: grabbing; }
+        .draggable.neon { border-color: var(--accent-color); box-shadow: 0 0 20px var(--accent-color); }
+        
+        .draggable img {
+            width: 80%; height: 80%; object-fit: contain;
+        }
 
-        /* Стили для зон ответов */
+        /* Зоны ответов */
         .dropzone {
-            width: 120px;
-            height: 120px;
-            border: 3px dashed #aaa;
-            border-radius: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: all 0.3s;
-            background: rgba(255,255,255,0.1);
+            width: 200px; height: 80px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px dashed var(--glass-border);
+            border-radius: 16px;
+            display: flex; justify-content: center; align-items: center;
+            color: white; font-size: 1.2rem; font-weight: 500;
+            transition: all 0.3s ease;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
         .dropzone.highlight {
             border-color: var(--accent-color);
-            background: rgba(0, 242, 255, 0.2);
-            transform: scale(1.1);
-            box-shadow: 0 0 20px var(--accent-color);
+            background: rgba(0, 242, 255, 0.1);
+            transform: scale(1.05);
         }
 
-        /* Анимация успеха */
-        @keyframes success-pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-        .matched { animation: success-pop 0.5s ease; pointer-events: none; opacity: 0.8; }
-
-        #feedback {
-            position: fixed;
-            top: 20px;
-            left: 50%;
+        /* Фидбек */
+        #feedback-toast {
+            position: fixed; top: -100px; left: 50%;
             transform: translateX(-50%);
-            padding: 10px 20px;
-            border-radius: 20px;
-            display: none;
-            font-weight: bold;
-            z-index: 100;
+            padding: 15px 40px; border-radius: 50px;
+            background: white; color: #1a1a2e;
+            font-weight: bold; font-size: 1.2rem;
+            transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .success-anim { animation: success-shine 0.6s ease; pointer-events: none; }
+        @keyframes success-shine {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.1); filter: brightness(1.5); }
+            100% { transform: scale(1); filter: brightness(1); }
         }
     </style>
 </head>
 <body>
 
-<div id="feedback"></div>
-<div id="game-container">
-    </div>
+<div class="bg-blobs">
+    <div class="blob" style="width: 400px; height: 400px; top: -10%; left: -10%;"></div>
+    <div class="blob" style="width: 300px; height: 300px; bottom: 10%; right: 10%; animation-delay: -5s;"></div>
+</div>
+
+<div id="feedback-toast">Отлично! 🎉</div>
+
+<div id="game-screen">
+    <div id="draggables-container" style="display: flex; flex-direction: column; gap: 20px;"></div>
+    <div id="dropzones-container" style="display: flex; flex-direction: column; gap: 20px;"></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
 <script>
 /**
- * КОНФИГУРАЦИЯ (Будет настраиваться через редактор)
+ * РАСШИРЕННЫЙ КОНФИГ
+ * В редакторе учитель сможет добавлять свои картинки через URL
  */
 const config = {
     settings: {
         neon: true,
-        soundEnabled: true,
-        fontFamily: 'Arial',
-        language: 'ru',
-        feedbackSuccess: "Отлично!",
-        feedbackError: "Попробуй еще раз",
-        accentColor: "#00f2ff"
+        accentColor: "#00f2ff",
+        successText: "Ты справился! ✨",
+        errorText: "Попробуй ещё раз 🌀"
     },
+    // Можно использовать как эмодзи, так и ссылки на картинки
     items: [
-        { id: 1, content: "🍎", pair: "Apple", type: "text" },
-        { id: 2, content: "🐱", pair: "Cat", type: "text" },
-        { id: 3, content: "🚗", pair: "Car", type: "text" }
-    ]
-};
-
-let matchedCount = 0;
-
-function initGame() {
-    const container = document.getElementById('game-container');
-    document.documentElement.style.setProperty('--accent-color', config.settings.accentColor);
-
-    // Создаем зоны ответов (справа)
-    config.items.forEach((item, index) => {
-        const zone = document.createElement('div');
-        zone.className = 'dropzone';
-        zone.id = `zone-${item.id}`;
-        zone.innerHTML = `<span>${item.pair}</span>`;
-        zone.style.position = 'absolute';
-        zone.style.right = '10%';
-        zone.style.top = `${20 + index * 25}%`;
-        container.appendChild(zone);
-
-        // Создаем объекты (слева)
-        const el = document.createElement('div');
-        el.className = `draggable ${config.settings.neon ? 'neon' : ''}`;
-        el.id = `drag-${item.id}`;
-        el.innerHTML = item.content;
-        el.style.left = '10%';
-        el.style.top = `${20 + index * 25}%`;
-        el.setAttribute('data-id', item.id);
-        container.appendChild(el);
-    });
-
-    setupDragAndDrop();
-}
-
-function setupDragAndDrop() {
-    interact('.draggable').draggable({
-        inertia: true,
-        modifiers: [
-            interact.modifiers.restrictRect({
-                restriction: 'parent',
-                endOnly: true
-            })
-        ],
-        listeners: {
-            move(event) {
-                const target = event.target;
-                const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-                const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-
-                target.style.transform = `translate(${x}px, ${y}px)`;
-                target.setAttribute('data-x', x);
-                target.setAttribute('data-y', y);
-            },
-            end(event) {
-                checkDrop(event);
-            }
-        }
-    });
-
-    // Зона магнетизма
-    interact('.dropzone').dropzone({
-        accept: '.draggable',
-        overlap: 0.5,
-        ondragenter(event) {
-            event.target.classList.add('highlight');
-            if(config.settings.soundEnabled) playSound('ting');
-        },
-        ondragleave(event) {
-            event.target.classList.remove('highlight');
-        }
-    });
-}
-
-function checkDrop(event) {
-    const draggable = event.target;
-    const dropzone = document.querySelector('.dropzone.highlight');
-    
-    if (dropzone) {
-        const dragId = draggable.getAttribute('data-id');
-        const zoneId = dropzone.id.replace('zone-', '');
-
-        if (dragId === zoneId) {
-            // УСПЕХ
-            draggable.classList.add('matched');
-            dropzone.classList.remove('highlight');
-            dropzone.style.borderColor = 'green';
-            showFeedback(config.settings.feedbackSuccess, 'lightgreen');
-            matchedCount++;
-            
-            if(matchedCount === config.items.length) {
-                alert("Уровень пройден! 🏆");
-            }
-        } else {
-            // ОШИБКА
-            resetElement(draggable);
-            showFeedback(config.settings.feedbackError, '#ffcccb');
-        }
-    } else {
-        resetElement(draggable);
-    }
-}
-
-function resetElement(el) {
-    el.style.transform = `translate(0px, 0px)`;
-    el.setAttribute('data-x', 0);
-    el.setAttribute('data-y', 0);
-}
-
-function showFeedback(text, color) {
-    const fb = document.getElementById('feedback');
-    fb.innerText = text;
-    fb.style.backgroundColor = color;
-    fb.style.display = 'block';
-    setTimeout(() => fb.style.display = 'none', 1500);
-}
-
-function playSound(type) {
-    // Здесь будет логика Audio контекста
-    console.log("Play sound:", type);
-}
-
-initGame();
-</script>
-</body>
-</html>
+        { id: 1, content: "🍎", label: "Яблоко" },
+        { id: 2, content: "🚀", label
